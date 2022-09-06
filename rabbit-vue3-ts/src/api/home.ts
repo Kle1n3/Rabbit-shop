@@ -4,3 +4,8 @@ import instance from "../utils/request";
 export const getAllHomepageDataApi = () => instance({
     url:'/home/index'
 })
+
+// 首页-广告区域
+export const getBannerPicApi = () => instance({
+    url:'/home/banner'
+})
