@@ -9,7 +9,6 @@ export default defineStore('home', {
     actions: {
         async getBannerList() {
             const {result}= await getBannerPicApi()
-            console.log(result);
             this.bannerList = result
         }
     }

@@ -1,10 +1,18 @@
 <script lang="ts" setup name="XtxMessage">
-import { PropType } from "vue";
+import { PropType, ref, onMounted } from "vue";
 
 defineProps({
   type: {
     type: String as PropType<"success" | "error" | "warning">,
     default: "success",
+  },
+  text: {
+    type: String,
+    default: "提示",
+  },
+  isShow: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -29,13 +37,19 @@ const style = {
     borderColor: "rgb(225, 243, 216)",
   },
 };
+// const isShow = ref(false);
+/* onMounted(() => {
+  isShow.value = true;
+}); */
 </script>
 
 <template>
   <transition name="down">
-    <div class="xtx-message" :style="style[type]">
+    <div class="xtx-message" :style="style[type]" v-show="isShow">
       <i class="iconfont" :class="style[type].icon"></i>
-      <span class="text"><slot></slot></span>
+      <span class="text"
+        ><slot>{{ text }}</slot></span
+      >
     </div>
   </transition>
 </template>

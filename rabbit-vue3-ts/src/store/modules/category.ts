@@ -17,7 +17,7 @@ export default defineStore('category', {
     actions: {
         async getHeaderCategory() {
             const { result } = await getHeaderCategoryApi()
-            console.log(result);
+  
             
             result.forEach(item => {
                 item.open=false

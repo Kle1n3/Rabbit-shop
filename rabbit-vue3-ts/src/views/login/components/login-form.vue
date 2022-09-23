@@ -1,31 +1,149 @@
 <script lang="ts" setup name="LoginForm">
-import { ref } from 'vue';
-import XtxCheckbox from '@/components/checkbox/index.vue'
-    const type = ref<'account'|'mobile'>('account')
+import { ref, onBeforeUnmount, watch, onUnmounted } from "vue";
+import XtxCheckbox from "@/components/checkbox/index.vue";
+import Message from "@/components/message";
+import useStore from "@/store";
+import { useRouter } from "vue-router";
+import { useField, useForm } from "vee-validate";
+import { useIntervalFn } from "@vueuse/shared";
+const router = useRouter();
+const { user } = useStore();
+const type = ref<"account" | "mobile">("account");
+const isMsgLogin = ref(false);
+/* const form = ref({
+  account: "xiaotuxian001",
+  password: "123456",
+  isAgree: false,
+}); */
+
+// 表单校验
+const { validate, resetForm } = useForm({
+  // 提供校验规则
+  validationSchema: {
+    account: (value: string) => {
+      // 校验的value值
+      // value是将来使用该规则的表单元素的值
+      // 1. 必填
+      // 2. 6-20个字符，需要以字母开头
+      // 如何反馈校验成功还是失败，返回true才是成功，其他情况失败，返回失败原因。
+      if (!value) return "请输入用户名";
+      if (!/^[a-zA-Z]\w{5,19}$/.test(value)) return "字母开头且6-20个字符";
+      return true;
+    },
+    password: (value: string) => {
+      if (!value) return "请输入密码";
+      if (!/^\w{6,12}$/.test(value)) return "密码必须是6-24位字符";
+      return true;
+    },
+    isAgree: (value: boolean) => {
+      if (!value) return "请同意隐私条款";
+      return true;
+    },
+    mobile: (value: string) => {
+      if (!value) return "请输入手机号";
+      if (!/^1[3-9]\d{9}$/.test(value)) return "手机号格式错误";
+      return true;
+    },
+    code: (value: string) => {
+      if (!value) return "请输入验证码";
+      if (!/^\d{6}$/.test(value)) return "验证码格式错误";
+      return true;
+    },
+  },
+});
+const { value: account, errorMessage: accountError } =
+  useField<string>("account");
+const { value: password, errorMessage: passwordError } =
+  useField<string>("password");
+const { value: isAgree, errorMessage: isAgreeError } =
+  useField<boolean>("isAgree");
+const {
+  value: mobile,
+  errorMessage: mobileError,
+  validate: validateMobile,
+} = useField<string>("mobile");
+const { value: code, errorMessage: codeError } = useField<string>("code");
+watch(type, () => {
+  resetForm();
+});
+// Login
+const login = async () => {
+  const res = await validate();
+  if (type.value === "account") {
+    if (res.errors.account || res.errors.password || res.errors.isAgree) return;
+    await user.login(account.value, password.value);
+  } else {
+    if (res.errors.mobile || res.errors.code) return;
+    await user.mobileLogin(mobile.value, code.value);
+  }
+  Message.success("登录成功");
+  router.push("/");
+};
+
+// 短信验证码登录
+const mobileRef = ref<HTMLInputElement | null>(null);
+const time = ref(0);
+const { pause, resume } = useIntervalFn(
+  () => {
+    time.value--;
+    if (time.value <= 0) {
+      pause();
+    }
+  },
+  1000,
+  { immediate: false }
+);
+const send = async () => {
+  const res = await validateMobile();
+  if (!res.valid) {
+    mobileRef.value?.focus();
+    return;
+  }
+  await user.sendMobileMSG(mobile.value);
+  Message.success("获取验证码成功");
+  time.value = 60;
+  resume();
+};
+onUnmounted(() => {
+  pause();
+});
 </script>
 <template>
   <div class="account-box">
     <div class="toggle">
-      <a href="javascript:;" @click="type='account'" v-if="type==='mobile'">
+      <a href="javascript:;" @click="type = 'account'" v-if="type === 'mobile'">
         <i class="iconfont icon-user"></i> 使用账号登录
       </a>
-      <a href="javascript:;" @click="type='mobile'" v-else>
+      <a href="javascript:;" @click="type = 'mobile'" v-else>
         <i class="iconfont icon-msg"></i> 使用短信登录
       </a>
     </div>
     <div class="form">
-      <template v-if="type==='account'">
+      <template v-if="type === 'account'">
         <div class="form-item">
           <div class="input">
             <i class="iconfont icon-user"></i>
-            <input type="text" placeholder="请输入用户名或手机号" />
+            <input
+              v-model="account"
+              type="text"
+              placeholder="请输入用户名或手机号"
+            />
           </div>
-          <!-- <div class="error"><i class="iconfont icon-warning" />请输入手机号</div> -->
+          <div class="error" v-if="accountError">
+            <i class="iconfont icon-warning" />{{ accountError }}
+          </div>
         </div>
         <div class="form-item">
           <div class="input">
             <i class="iconfont icon-lock"></i>
-            <input type="password" placeholder="请输入密码" />
+            <input
+              v-model="password"
+              type="password"
+              placeholder="请输入密码"
+            />
+          </div>
+          <div class="error" v-if="passwordError">
+            <i class="iconfont icon-warning" />{{ passwordError }}
           </div>
         </div>
       </template>
@@ -33,27 +151,41 @@ import XtxCheckbox from '@/components/checkbox/index.vue'
         <div class="form-item">
           <div class="input">
             <i class="iconfont icon-user"></i>
-            <input type="text" placeholder="请输入手机号" />
+            <input
+              ref="mobileRef"
+              v-model="mobile"
+              type="text"
+              placeholder="请输入手机号"
+            />
+          </div>
+          <div class="error" v-if="mobileError">
+            <i class="iconfont icon-warning" />{{ mobileError }}
           </div>
         </div>
         <div class="form-item">
           <div class="input">
             <i class="iconfont icon-code"></i>
-            <input type="password" placeholder="请输入验证码" />
-            <span class="code">发送验证码</span>
+            <input v-model="code" type="password" placeholder="请输入验证码" />
+            <span class="code" @click="send">发送验证码</span>
+          </div>
+          <div class="error" v-if="codeError">
+            <i class="iconfont icon-warning" />{{ codeError }}
           </div>
         </div>
       </template>
       <div class="form-item">
         <div class="agree">
-            <XtxCheckbox v-model="isAgree" />
+          <XtxCheckbox v-model="isAgree" />
           <span>我已同意</span>
           <a href="javascript:;">《隐私条款》</a>
           <span>和</span>
           <a href="javascript:;">《服务条款》</a>
         </div>
+        <div class="error" v-if="isAgreeError">
+          <i class="iconfont icon-warning" />{{ isAgreeError }}
+        </div>
       </div>
-      <a href="javascript:;" class="btn">登录</a>
+      <a href="javascript:;" class="btn" @click="login">登录</a>
     </div>
     <div class="action">
       <img
